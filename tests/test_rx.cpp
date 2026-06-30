@@ -98,6 +98,25 @@ int main() {
         check(rej > 35.0, "USB pass / LSB leak", rej, "dB");
     }
 
+    // --- AGC: silence -> sudden full signal must not spike, then settle ---
+    {
+        Agc agc(audioFs);
+        const int an = (int)audioFs;
+        float maxOut = 0.0f;
+        double sumSq = 0.0;
+        const int from = an / 2;
+        for (int i = 0; i < an; ++i) {
+            const float x = 0.4f * std::sin(2.0 * M_PI * 800.0 * i / audioFs);
+            const float y = agc.process(x);
+            maxOut = std::max(maxOut, std::fabs(y));
+            if (i >= from) sumSq += (double)y * y;
+        }
+        const double steadyRms = std::sqrt(sumSq / (an - from));
+        std::printf("agc:\n");
+        check(maxOut < 1.5, "peak output (no startup spike)", maxOut, "");
+        check(steadyRms > 0.15 && steadyRms < 0.30, "steady-state rms", steadyRms, "");
+    }
+
     std::printf("\n%s (%d failure%s)\n",
                 g_failures == 0 ? "ALL PASS" : "FAILURES",
                 g_failures, g_failures == 1 ? "" : "s");

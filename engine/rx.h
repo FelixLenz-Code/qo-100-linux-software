@@ -38,7 +38,10 @@ private:
     int count_ = 0;
 };
 
-// Audio automatic gain control (peak follower + smoothed gain).
+// Audio automatic gain control: peak-follower envelope with a fast attack
+// (turn gain down quickly when the signal gets loud) and a slow release
+// (raise gain gently when it goes quiet). The asymmetry, plus a bounded
+// maximum gain, avoids the start-up spike a symmetric loop would produce.
 class Agc {
 public:
     explicit Agc(double audioFs, float target = 0.3f);
@@ -47,7 +50,8 @@ public:
 
 private:
     float target_, peak_ = 1e-6f, gain_ = 1.0f;
-    float attack_, release_, maxGain_ = 4000.0f;
+    float envDecay_, gainUp_, gainDown_;
+    float maxGain_ = 100.0f;
 };
 
 // Full RX chain. `setTune` selects, in Hz relative to the centre of the input

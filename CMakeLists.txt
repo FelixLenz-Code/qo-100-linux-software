@@ -15,8 +15,15 @@ add_library(qo100_engine
     engine/ssb.cpp
     engine/rx.cpp
     engine/iqfile.cpp
+    engine/fft.cpp
+    engine/spectrum.cpp
+    engine/wavfile.cpp
 )
 target_include_directories(qo100_engine PUBLIC engine)
+
+# Command-line front end (no audio/GUI dependencies).
+add_executable(qo100_cli apps/qo100_cli.cpp)
+target_link_libraries(qo100_cli PRIVATE qo100_engine)
 
 enable_testing()
 
@@ -27,3 +34,7 @@ add_test(NAME ssb_roundtrip COMMAND test_ssb)
 add_executable(test_rx tests/test_rx.cpp)
 target_link_libraries(test_rx PRIVATE qo100_engine)
 add_test(NAME rx_chain COMMAND test_rx)
+
+add_executable(test_backend tests/test_backend.cpp)
+target_link_libraries(test_backend PRIVATE qo100_engine)
+add_test(NAME dsp_backend COMMAND test_backend)

@@ -76,9 +76,9 @@ bool FirDecimator::process(cf32 x, cf32& out) {
 // ---- Agc ----
 
 Agc::Agc(double audioFs, float target) : target_(target) {
-    // ~5 ms attack, ~300 ms release.
-    attack_ = static_cast<float>(1.0 - std::exp(-1.0 / (0.005 * audioFs)));
-    release_ = static_cast<float>(std::exp(-1.0 / (0.300 * audioFs)));
+    envDecay_ = static_cast<float>(std::exp(-1.0 / (0.300 * audioFs)));        // ~300 ms hold
+    gainDown_ = static_cast<float>(1.0 - std::exp(-1.0 / (0.002 * audioFs)));  // ~2 ms attack
+    gainUp_ = static_cast<float>(1.0 - std::exp(-1.0 / (1.000 * audioFs)));    // ~1 s release
 }
 
 void Agc::reset() {
@@ -88,10 +88,11 @@ void Agc::reset() {
 
 float Agc::process(float x) {
     const float a = std::fabs(x);
-    peak_ = std::max(a, peak_ * release_);
-    float g = target_ / (peak_ + 1e-6f);
-    if (g > maxGain_) g = maxGain_;
-    gain_ += attack_ * (g - gain_);
+    peak_ = std::max(a, peak_ * envDecay_);
+    float desired = target_ / (peak_ + 1e-6f);
+    if (desired > maxGain_) desired = maxGain_;
+    const float c = (desired < gain_) ? gainDown_ : gainUp_; // fast down, slow up
+    gain_ += c * (desired - gain_);
     return x * gain_;
 }
 
