@@ -6,6 +6,8 @@ Schlanker SSB-Transceiver für den Amateurfunk-Satelliten **QO-100** (Es'hail-2)
 mit **ADALM-Pluto** unter Linux. Ziel: robustes USB-SSB-Senden und -Empfangen
 mit moderner UI — ohne den Funktionsballast großer SDR-Suiten.
 
+![QO-100 Linux GUI](docs/qo100-gui.png)
+
 ## Status
 
 | Phase | Inhalt | Stand |
