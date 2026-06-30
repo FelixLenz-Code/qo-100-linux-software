@@ -14,6 +14,7 @@ add_compile_options(-Wall -Wextra)
 add_library(qo100_engine
     engine/ssb.cpp
     engine/rx.cpp
+    engine/tx.cpp
     engine/iqfile.cpp
     engine/fft.cpp
     engine/spectrum.cpp
@@ -38,3 +39,7 @@ add_test(NAME rx_chain COMMAND test_rx)
 add_executable(test_backend tests/test_backend.cpp)
 target_link_libraries(test_backend PRIVATE qo100_engine)
 add_test(NAME dsp_backend COMMAND test_backend)
+
+add_executable(test_tx tests/test_tx.cpp)
+target_link_libraries(test_tx PRIVATE qo100_engine)
+add_test(NAME tx_loopback COMMAND test_tx)

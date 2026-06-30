@@ -13,6 +13,7 @@ class Nco {
 public:
     void setFreq(double hz, double fs);
     cf32 mixDown(cf32 x); // multiply by exp(-j*2*pi*f*t)
+    cf32 mixUp(cf32 x);   // multiply by exp(+j*2*pi*f*t)
     void reset() { phase_ = 0.0; }
 
 private:

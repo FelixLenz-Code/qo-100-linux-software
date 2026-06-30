@@ -25,6 +25,14 @@ cf32 Nco::mixDown(cf32 x) {
     return x * osc;
 }
 
+cf32 Nco::mixUp(cf32 x) {
+    const cf32 osc(static_cast<float>(std::cos(phase_)),
+                   static_cast<float>(std::sin(phase_)));
+    phase_ += dphi_;
+    wrap(phase_);
+    return x * osc;
+}
+
 // ---- FirDecimator ----
 
 FirDecimator::FirDecimator(int decim, double fsIn, double audioFs) : decim_(decim) {

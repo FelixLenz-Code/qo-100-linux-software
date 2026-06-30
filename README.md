@@ -12,7 +12,8 @@ mit moderner UI — ohne den Funktionsballast großer SDR-Suiten.
 | 1a | IQ-Datei-I/O (.cf32) + RX-DSP (Tuning, Dezimierung, AGC, Demod) | **fertig** |
 | 1b | WAV-Ausgabe, FFT/Spektrum-Backend, CLI-Tool (`qo100_cli`) | **fertig** |
 | 1c | Live-Audio (Soundkarte) + GPU-Wasserfall-UI | offen |
-| 2 | Senden: Full-Duplex über Pluto, PTT, gekoppelte TX/RX-Frequenz | offen |
+| 2a | TX-DSP (USB-Mod, Interpolation, Up-Mix) + TX→RX-Loopback-Test | **fertig** |
+| 2b | Pluto-Anbindung (libiio), Full-Duplex, PTT, gekoppelte TX/RX-Frequenz | offen |
 | 3 | Robustheit: Beacon-Kalibrierung, Persistenz, UI-Politur | offen |
 
 Der DSP-Kern wird **ohne Hardware** entwickelt und getestet (synthetische IQ
@@ -38,6 +39,7 @@ SDR zum Testen vorhanden ist.
 engine/   headless DSP, hardwarefrei testbar (IQ rein/raus)
   ssb.*       Hilbert-FIR, USB-Modulator/-Demodulator (phasing method)
   rx.*        RX-Kette: NCO-Tuner -> FIR-Dezimierung -> USB-Demod -> AGC
+  tx.*        TX-Kette: USB-Mod -> FIR-Interpolation -> NCO-Up-Mix
   fft.*       abhängigkeitsfreie radix-2 FFT
   spectrum.*  Wasserfall-Zeile: Fenster -> FFT -> dBFS (fftshift)
   iqfile.*    .cf32-Aufnahmen lesen/schreiben (GNU Radio / SDR++ kompatibel)
@@ -57,6 +59,9 @@ ui/           (Phase 1c+) Dear ImGui Wasserfall + Bedienpanels
 
 # .cf32 dekodieren -> hörbare .wav (fsIn, Dezimierung, Tune-Offset in Hz)
 ./build/qo100_cli decode scene.cf32 384000 8 50000 out.wav
+
+# Sendepfad: Mono-WAV USB-modulieren -> .cf32 (fsOut, Interpolation, Tune-Offset)
+./build/qo100_cli modulate out.wav 384000 8 50000 tx.cf32
 ```
 
 Echte QO-100-Mitschnitte (interleaved float32 `.cf32`, z. B. aus gqrx oder vom

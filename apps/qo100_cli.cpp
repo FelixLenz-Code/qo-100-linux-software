@@ -7,6 +7,9 @@
 //       Tune, demodulate USB and render the audio to a WAV file you can listen
 //       to later. Also prints the dominant recovered audio tone as a sanity check.
 //
+//   qo100_cli modulate <in.wav> <fsOut> <interp> <tuneHz> <out.cf32>
+//       USB-modulate a mono WAV into a wide-band IQ capture (the transmit path).
+//
 // Real QO-100 captures (interleaved float32 .cf32, e.g. from the BATC WebSDR or
 // gqrx) work directly with `decode`.
 
@@ -14,6 +17,7 @@
 #include "../engine/fft.h"
 #include "../engine/iqfile.h"
 #include "../engine/rx.h"
+#include "../engine/tx.h"
 #include "../engine/wavfile.h"
 
 #include <cmath>
@@ -31,7 +35,8 @@ int usage() {
     std::printf(
         "usage:\n"
         "  qo100_cli gen <out.cf32>\n"
-        "  qo100_cli decode <in.cf32> <fsIn> <decim> <tuneHz> <out.wav>\n");
+        "  qo100_cli decode <in.cf32> <fsIn> <decim> <tuneHz> <out.wav>\n"
+        "  qo100_cli modulate <in.wav> <fsOut> <interp> <tuneHz> <out.cf32>\n");
     return 2;
 }
 
@@ -113,11 +118,46 @@ int decode(int argc, char** argv) {
     return 0;
 }
 
+int modulate(int argc, char** argv) {
+    if (argc != 7) return usage();
+    const std::string in = argv[2];
+    const double fsOut = std::atof(argv[3]);
+    const int interp = std::atoi(argv[4]);
+    const double tune = std::atof(argv[5]);
+    const std::string out = argv[6];
+    if (fsOut <= 0 || interp <= 0) return usage();
+
+    std::vector<float> audio;
+    int rate = 0;
+    if (!wavfile::readMono(in, audio, rate)) {
+        std::fprintf(stderr, "error: cannot read mono WAV %s\n", in.c_str());
+        return 1;
+    }
+    const int expected = (int)(fsOut / interp);
+    if (rate != expected)
+        std::fprintf(stderr, "warning: WAV rate %d Hz != fsOut/interp %d Hz\n", rate, expected);
+
+    TxChain tx(fsOut, interp);
+    tx.setTune(tune);
+    std::vector<cf32> iq;
+    tx.process(audio, iq);
+
+    if (!iqfile::write(out, iq)) {
+        std::fprintf(stderr, "error: cannot write %s\n", out.c_str());
+        return 1;
+    }
+    std::printf("modulated %zu audio samples -> %zu IQ samples @ %.0f Hz, tune %.0f Hz\n",
+                audio.size(), iq.size(), fsOut, tune);
+    std::printf("wrote %s\n", out.c_str());
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
     if (argc < 2) return usage();
     if (std::strcmp(argv[1], "gen") == 0 && argc == 3) return generate(argv[2]);
     if (std::strcmp(argv[1], "decode") == 0) return decode(argc, argv);
+    if (std::strcmp(argv[1], "modulate") == 0) return modulate(argc, argv);
     return usage();
 }
