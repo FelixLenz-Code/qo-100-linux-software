@@ -118,3 +118,21 @@ wird nur die Engine + CLI gebaut (`-DBUILD_UI=OFF` erzwingt das).
 QO-100-IQ-Aufnahmen für die Entwicklung gibt es u. a. über den
 BATC/AMSAT-DL WebSDR (eshail.batc.org.uk) und diverse öffentliche Mitschnitte.
 Bis dahin liefert der eingebaute Signalgenerator deterministische Testsignale.
+
+## Hinweis zur KI-Unterstützung
+
+Diese Software wurde vollständig mithilfe von Claude (einem KI-Assistenten von Anthropic) entwickelt. Der Autor hat die Anforderungen definiert, Entscheidungen getroffen und das Ergebnis geprüft — der Code selbst wurde durch den Dialog mit der KI generiert.
+
+## Haftungsausschluss
+
+Die Software wird so bereitgestellt, wie sie ist (as-is), ohne jegliche Garantie auf Korrektheit, Vollständigkeit oder Eignung für einen bestimmten Zweck. Der Autor übernimmt keinerlei Haftung für Schäden, Datenverluste oder sonstige Probleme, die durch die Verwendung dieser Software entstehen. Die Nutzung erfolgt auf eigene Verantwortung.
+
+## Lizenz
+
+© 2026 Felix Lenz.
+
+Dieses Projekt steht unter der **Creative Commons Attribution-NonCommercial 4.0
+International (CC BY-NC 4.0)** Lizenz. Du darfst es teilen und bearbeiten, solange du
+den Urheber nennst und es **nicht kommerziell** nutzt. Den vollständigen Text findest du
+in [`LICENSE`](./LICENSE) sowie unter
+<https://creativecommons.org/licenses/by-nc/4.0/>.
