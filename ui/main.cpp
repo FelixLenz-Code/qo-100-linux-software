@@ -10,10 +10,12 @@
 #include "implot.h"
 
 #include "../engine/calib.h"
+#include "../engine/filedevice.h"
 #include "../engine/iqfile.h"
 #include "../engine/qo100.h"
 #include "../engine/rx.h"
 #include "../engine/spectrum.h"
+#include "../engine/stream.h"
 #include "../engine/wavfile.h"
 
 #include <GLFW/glfw3.h>
@@ -22,7 +24,9 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -66,6 +70,56 @@ struct App {
     std::vector<float> waterfall;
     std::vector<float> avgSpec;
     std::vector<float> freqs;
+
+    // Live streaming.
+    bool live = false;
+    std::unique_ptr<FileDevice> dev;
+    std::unique_ptr<StreamEngine> eng;
+
+    void resetDisplay() {
+        waterfall.assign((size_t)rows * fftSize, dbMin);
+        avgSpec.assign(fftSize, dbMin);
+        freqs.resize(fftSize);
+        for (int b = 0; b < fftSize; ++b) freqs[b] = (b - fftSize / 2) * fsIn / fftSize;
+    }
+
+    void startLive() {
+        stopLive();
+        dev = std::make_unique<FileDevice>(path, fsIn, /*realtime=*/true);
+        if (!dev->start()) {
+            status = "Live: »" + path + "« nicht lesbar";
+            dev.reset();
+            return;
+        }
+        fftSize = 1024;
+        resetDisplay();
+        haveData = true;
+        eng = std::make_unique<StreamEngine>(*dev, decim, fftSize);
+        eng->setTune(tune);
+        eng->start();
+        live = true;
+        status = "Live läuft …";
+    }
+
+    void stopLive() {
+        if (eng) { eng->stop(); eng.reset(); }
+        if (dev) { dev->stop(); dev.reset(); }
+        if (live) status = "Live gestoppt";
+        live = false;
+    }
+
+    void pollLive() {
+        if (!live || !eng) return;
+        eng->setTune(tune);
+        std::vector<float> row;
+        if (eng->latestSpectrum(row) && (int)row.size() == fftSize) {
+            // Scroll down: newest row on top.
+            std::memmove(waterfall.data() + fftSize, waterfall.data(),
+                         (size_t)(rows - 1) * fftSize * sizeof(float));
+            std::copy(row.begin(), row.end(), waterfall.begin());
+            avgSpec = row;
+        }
+    }
 
     void load() {
         iq.clear();
@@ -279,7 +333,21 @@ void drawSidebar(App& app) {
     std::snprintf(buf, sizeof(buf), "%s", app.path.c_str());
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::InputText("##path", buf, sizeof(buf))) app.path = buf;
-    if (ImGui::Button("Laden", ImVec2(-FLT_MIN, 0))) app.load();
+    const float halfW =
+        (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+    if (ImGui::Button("Laden", ImVec2(halfW, 0))) { app.stopLive(); app.load(); }
+    ImGui::SameLine();
+    if (!app.live) {
+        ImGui::PushStyleColor(ImGuiCol_Button, kAccentLo);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kAccent);
+        if (ImGui::Button("Live", ImVec2(halfW, 0))) app.startLive();
+        ImGui::PopStyleColor(2);
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Button, rgb(0x9F1239));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rgb(0xBE123C));
+        if (ImGui::Button("Stop", ImVec2(halfW, 0))) app.stopLive();
+        ImGui::PopStyleColor(2);
+    }
 
     sectionHeader("EMPFANG");
     labeledInputFloat("Abtastrate  [Hz]", "##fs", &app.fsIn, "%.0f");
@@ -367,6 +435,20 @@ void drawContent(App& app) {
         return;
     }
 
+    if (app.live) {
+        ImGui::PushStyleColor(ImGuiCol_Text, rgb(0x34D399));
+        ImGui::TextUnformatted("LIVE");
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::TextColored(kMuted, "S-Meter");
+        ImGui::SameLine();
+        const double lvl = app.eng ? app.eng->audioLevel() : 0.0;
+        const float meter = (float)std::min(1.0, lvl / 0.5);
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, kAccent);
+        ImGui::ProgressBar(meter, ImVec2(-FLT_MIN, 14), "");
+        ImGui::PopStyleColor();
+    }
+
     const double halfBand = app.fsIn / 2.0;
     const float avail = ImGui::GetContentRegionAvail().y;
     const float wfH = avail * 0.62f - 6.0f;
@@ -404,6 +486,8 @@ void drawContent(App& app) {
 }
 
 void drawUi(App& app) {
+    app.pollLive();
+
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->WorkPos);
     ImGui::SetNextWindowSize(vp->WorkSize);
@@ -437,7 +521,12 @@ void drawUi(App& app) {
 int main(int argc, char** argv) {
     App app;
     app.loadConfig();              // restore last session if present
-    if (argc > 1) app.path = argv[1]; // explicit file overrides the saved path
+    bool wantLive = false;         // --live starts streaming immediately
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        if (a == "--live") wantLive = true;
+        else app.path = a; // explicit file overrides the saved path
+    }
 
     if (!glfwInit()) { std::fprintf(stderr, "glfwInit failed\n"); return 1; }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -455,7 +544,8 @@ int main(int argc, char** argv) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    app.load(); // restored or supplied path; harmlessly reports if missing
+    if (wantLive) app.startLive();
+    else app.load(); // restored or supplied path; harmlessly reports if missing
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -477,6 +567,7 @@ int main(int argc, char** argv) {
         glfwSwapBuffers(window);
     }
 
+    app.stopLive();   // tear down streaming threads cleanly
     app.saveConfig(); // remember this session
 
     ImGui_ImplOpenGL3_Shutdown();

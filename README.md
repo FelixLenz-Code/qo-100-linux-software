@@ -16,7 +16,8 @@ mit moderner UI — ohne den Funktionsballast großer SDR-Suiten.
 | 1c | Wasserfall-GUI (Datei-Viewer: Spektrum, Tuning, Decode→WAV) | **fertig** |
 | 1d | Live-Audio (Soundkarte, Echtzeit-Streaming) | offen |
 | 2a | TX-DSP (USB-Mod, Interpolation, Up-Mix) + TX→RX-Loopback-Test | **fertig** |
-| 2b | Pluto-Anbindung (libiio), Full-Duplex, PTT, gekoppelte TX/RX-Frequenz | offen |
+| 2b-prep | Geräte-Abstraktion + Echtzeit-Streaming (Mock-Gerät), Live-Wasserfall | **fertig** |
+| 2b | Pluto-Anbindung (libiio) als IqDevice, Full-Duplex, PTT | offen (braucht SDR) |
 | 3a | Beacon-Kalibrierung (LNB-Drift messen) + QO-100-Frequenzplan | **fertig** |
 | 3b | GUI: echte Frequenzen, Beacon-Kalibrierung, Einstellungs-Persistenz | **fertig** |
 
@@ -46,6 +47,10 @@ engine/   headless DSP, hardwarefrei testbar (IQ rein/raus)
   tx.*        TX-Kette: USB-Mod -> FIR-Interpolation -> NCO-Up-Mix
   calib.*     Beacon-Kalibrierung: CW-Beacon finden, LNB-Drift messen
   qo100.h     Frequenzplan (Uplink/Downlink, Beacons, 8089.5-MHz-Offset)
+  device.h    IqDevice-Schnittstelle (Pluto später = eine Implementierung)
+  filedevice.* Mock-Gerät: streamt eine .cf32 (Echtzeit oder deterministisch)
+  ringbuffer.h thread-sicherer SPSC-Ringpuffer
+  stream.*    Echtzeit-Engine: Gerät -> RX + Spektrum, thread-sichere Snapshots
   fft.*       abhängigkeitsfreie radix-2 FFT
   spectrum.*  Wasserfall-Zeile: Fenster -> FFT -> dBFS (fftshift)
   iqfile.*    .cf32-Aufnahmen lesen/schreiben (GNU Radio / SDR++ kompatibel)
@@ -98,6 +103,7 @@ wird nur die Engine + CLI gebaut (`-DBUILD_UI=OFF` erzwingt das).
 ```sh
 ./build/qo100_cli gen scene.cf32     # Testaufnahme, falls keine eigene da ist
 ./build/qo100_ui scene.cf32          # Wasserfall: abstimmen, Decode -> decoded.wav
+./build/qo100_ui scene.cf32 --live   # Live-Modus: scrollender Wasserfall + S-Meter
 ```
 
 ## Geplante Abhängigkeiten (später)

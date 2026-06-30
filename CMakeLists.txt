@@ -20,8 +20,13 @@ add_library(qo100_engine
     engine/spectrum.cpp
     engine/wavfile.cpp
     engine/calib.cpp
+    engine/filedevice.cpp
+    engine/stream.cpp
 )
 target_include_directories(qo100_engine PUBLIC engine)
+
+find_package(Threads REQUIRED)
+target_link_libraries(qo100_engine PUBLIC Threads::Threads)
 
 # Command-line front end (no audio/GUI dependencies).
 add_executable(qo100_cli apps/qo100_cli.cpp)
@@ -82,3 +87,7 @@ add_test(NAME tx_loopback COMMAND test_tx)
 add_executable(test_calib tests/test_calib.cpp)
 target_link_libraries(test_calib PRIVATE qo100_engine)
 add_test(NAME beacon_calib COMMAND test_calib)
+
+add_executable(test_stream tests/test_stream.cpp)
+target_link_libraries(test_stream PRIVATE qo100_engine)
+add_test(NAME streaming COMMAND test_stream)
