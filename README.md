@@ -15,7 +15,8 @@ mit moderner UI — ohne den Funktionsballast großer SDR-Suiten.
 | 1d | Live-Audio (Soundkarte, Echtzeit-Streaming) | offen |
 | 2a | TX-DSP (USB-Mod, Interpolation, Up-Mix) + TX→RX-Loopback-Test | **fertig** |
 | 2b | Pluto-Anbindung (libiio), Full-Duplex, PTT, gekoppelte TX/RX-Frequenz | offen |
-| 3 | Robustheit: Beacon-Kalibrierung, Persistenz, UI-Politur | offen |
+| 3a | Beacon-Kalibrierung (LNB-Drift messen) + QO-100-Frequenzplan | **fertig** |
+| 3b | Persistenz der Einstellungen, UI-Politur, Kalibrierung in der GUI | offen |
 
 Der DSP-Kern wird **ohne Hardware** entwickelt und getestet (synthetische IQ
 sowie später echte QO-100-Aufnahmen). Der Pluto-Adapter kommt erst, wenn ein
@@ -41,6 +42,8 @@ engine/   headless DSP, hardwarefrei testbar (IQ rein/raus)
   ssb.*       Hilbert-FIR, USB-Modulator/-Demodulator (phasing method)
   rx.*        RX-Kette: NCO-Tuner -> FIR-Dezimierung -> USB-Demod -> AGC
   tx.*        TX-Kette: USB-Mod -> FIR-Interpolation -> NCO-Up-Mix
+  calib.*     Beacon-Kalibrierung: CW-Beacon finden, LNB-Drift messen
+  qo100.h     Frequenzplan (Uplink/Downlink, Beacons, 8089.5-MHz-Offset)
   fft.*       abhängigkeitsfreie radix-2 FFT
   spectrum.*  Wasserfall-Zeile: Fenster -> FFT -> dBFS (fftshift)
   iqfile.*    .cf32-Aufnahmen lesen/schreiben (GNU Radio / SDR++ kompatibel)
@@ -66,6 +69,9 @@ tests/        Selbsttests (SSB, RX-Kette, TX-Loopback, FFT/Spektrum/WAV)
 
 # Sendepfad: Mono-WAV USB-modulieren -> .cf32 (fsOut, Interpolation, Tune-Offset)
 ./build/qo100_cli modulate out.wav 384000 8 50000 tx.cf32
+
+# LNB-Drift am Beacon messen (erwartete Position, Suchfenster in Hz)
+./build/qo100_cli calibrate scene.cf32 384000 20000 8000
 ```
 
 Echte QO-100-Mitschnitte (interleaved float32 `.cf32`, z. B. aus gqrx oder vom

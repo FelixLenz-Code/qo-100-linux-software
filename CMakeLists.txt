@@ -19,6 +19,7 @@ add_library(qo100_engine
     engine/fft.cpp
     engine/spectrum.cpp
     engine/wavfile.cpp
+    engine/calib.cpp
 )
 target_include_directories(qo100_engine PUBLIC engine)
 
@@ -77,3 +78,7 @@ add_test(NAME dsp_backend COMMAND test_backend)
 add_executable(test_tx tests/test_tx.cpp)
 target_link_libraries(test_tx PRIVATE qo100_engine)
 add_test(NAME tx_loopback COMMAND test_tx)
+
+add_executable(test_calib tests/test_calib.cpp)
+target_link_libraries(test_calib PRIVATE qo100_engine)
+add_test(NAME beacon_calib COMMAND test_calib)

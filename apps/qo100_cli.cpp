@@ -13,6 +13,7 @@
 // Real QO-100 captures (interleaved float32 .cf32, e.g. from the BATC WebSDR or
 // gqrx) work directly with `decode`.
 
+#include "../engine/calib.h"
 #include "../engine/dsp.h"
 #include "../engine/fft.h"
 #include "../engine/iqfile.h"
@@ -36,7 +37,8 @@ int usage() {
         "usage:\n"
         "  qo100_cli gen <out.cf32>\n"
         "  qo100_cli decode <in.cf32> <fsIn> <decim> <tuneHz> <out.wav>\n"
-        "  qo100_cli modulate <in.wav> <fsOut> <interp> <tuneHz> <out.cf32>\n");
+        "  qo100_cli modulate <in.wav> <fsOut> <interp> <tuneHz> <out.cf32>\n"
+        "  qo100_cli calibrate <in.cf32> <fsIn> <expectedHz> <searchHz>\n");
     return 2;
 }
 
@@ -53,9 +55,11 @@ int generate(const std::string& path) {
         for (int i = 0; i < n; ++i) scene[i] += t[i];
     }
     auto interferer = complexTone(140000.0, fsIn, n, 0.3f); // outside the passband
+    auto beacon = complexTone(20000.0, fsIn, n, 0.6f);      // CW beacon at a known offset
     unsigned s = 12345;
     auto rnd = [&] { s = s * 1664525u + 1013904223u; return (s >> 8) / 16777216.0f - 0.5f; };
-    for (int i = 0; i < n; ++i) scene[i] += interferer[i] + cf32(0.002f * rnd(), 0.002f * rnd());
+    for (int i = 0; i < n; ++i)
+        scene[i] += interferer[i] + beacon[i] + cf32(0.002f * rnd(), 0.002f * rnd());
 
     if (!iqfile::write(path, scene)) {
         std::fprintf(stderr, "error: cannot write %s\n", path.c_str());
@@ -63,6 +67,31 @@ int generate(const std::string& path) {
     }
     std::printf("wrote %s  (%d samples @ %.0f Hz)\n", path.c_str(), n, fsIn);
     std::printf("decode it with:\n  qo100_cli decode %s 384000 8 50000 out.wav\n", path.c_str());
+    std::printf("calibrate on the beacon:\n  qo100_cli calibrate %s 384000 20000 8000\n", path.c_str());
+    return 0;
+}
+
+int calibrate(int argc, char** argv) {
+    if (argc != 6) return usage();
+    const std::string in = argv[2];
+    const double fsIn = std::atof(argv[3]);
+    const double expected = std::atof(argv[4]);
+    const double search = std::atof(argv[5]);
+    if (fsIn <= 0) return usage();
+
+    std::vector<cf32> iq;
+    if (!iqfile::read(in, iq)) {
+        std::fprintf(stderr, "error: cannot read %s\n", in.c_str());
+        return 1;
+    }
+    BeaconCalibrator cal(fsIn);
+    const CalResult r = cal.find(iq, expected, search);
+    if (!r.found) {
+        std::printf("no beacon found near %.0f Hz (snr %.1f dB)\n", expected, r.snrDb);
+        return 1;
+    }
+    std::printf("beacon at %.1f Hz (expected %.1f) -> LNB drift %.1f Hz, snr %.1f dB\n",
+                r.measuredHz, expected, r.errorHz, r.snrDb);
     return 0;
 }
 
@@ -159,5 +188,6 @@ int main(int argc, char** argv) {
     if (std::strcmp(argv[1], "gen") == 0 && argc == 3) return generate(argv[2]);
     if (std::strcmp(argv[1], "decode") == 0) return decode(argc, argv);
     if (std::strcmp(argv[1], "modulate") == 0) return modulate(argc, argv);
+    if (std::strcmp(argv[1], "calibrate") == 0) return calibrate(argc, argv);
     return usage();
 }
