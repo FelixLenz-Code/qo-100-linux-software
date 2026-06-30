@@ -111,6 +111,7 @@ RxChain::RxChain(double fsIn, int decim)
       audioFs_(fsIn / decim),
       dec_(decim, fsIn, fsIn / decim),
       dem_(fsIn / decim, 0.0), // carrier tuned to 0 Hz by the Nco
+      channel_(fsIn / decim, 300.0, 2700.0),
       agc_(fsIn / decim) {}
 
 void RxChain::setTune(double hz) { nco_.setFreq(hz, fsIn_); }
@@ -119,6 +120,7 @@ void RxChain::reset() {
     nco_.reset();
     dec_.reset();
     dem_.reset();
+    channel_.reset();
     agc_.reset();
 }
 
@@ -127,7 +129,8 @@ void RxChain::process(const std::vector<cf32>& in, std::vector<float>& audioOut)
     for (const cf32 s : in) {
         const cf32 tuned = nco_.mixDown(s);
         if (dec_.process(tuned, dec)) {
-            audioOut.push_back(agc_.process(dem_.process(dec)));
+            const float audio = channel_.process(dem_.process(dec)); // SSB channel filter
+            audioOut.push_back(agc_.process(audio));
         }
     }
 }

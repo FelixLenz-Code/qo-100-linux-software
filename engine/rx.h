@@ -1,4 +1,5 @@
 #pragma once
+#include "audiofilter.h"
 #include "ssb.h"
 #include <complex>
 #include <vector>
@@ -72,6 +73,7 @@ private:
     Nco nco_;
     FirDecimator dec_;
     SsbDemodulator dem_;
+    BandpassFIR channel_; // 300-2700 Hz SSB channel filter
     Agc agc_;
 };
 

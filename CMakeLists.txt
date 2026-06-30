@@ -13,6 +13,7 @@ add_compile_options(-Wall -Wextra)
 # Hardware-free DSP engine (no external dependencies yet).
 add_library(qo100_engine
     engine/ssb.cpp
+    engine/audiofilter.cpp
     engine/rx.cpp
     engine/tx.cpp
     engine/iqfile.cpp

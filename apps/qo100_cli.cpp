@@ -45,7 +45,7 @@ int usage() {
 // Synthetic scene: a USB signal carrying 300/800/1500 Hz tones at a +50 kHz
 // carrier offset, plus a far interferer and a little noise. fsIn = 384 kHz.
 int generate(const std::string& path) {
-    const double fsIn = 384000.0, carrier = 50000.0;
+    const double fsIn = 576000.0, carrier = 50000.0; // ~full 500 kHz NB transponder
     const int n = (int)fsIn * 3; // 3 seconds
     std::vector<cf32> scene(n, cf32(0.0f, 0.0f));
 
@@ -66,8 +66,8 @@ int generate(const std::string& path) {
         return 1;
     }
     std::printf("wrote %s  (%d samples @ %.0f Hz)\n", path.c_str(), n, fsIn);
-    std::printf("decode it with:\n  qo100_cli decode %s 384000 8 50000 out.wav\n", path.c_str());
-    std::printf("calibrate on the beacon:\n  qo100_cli calibrate %s 384000 20000 8000\n", path.c_str());
+    std::printf("decode it with:\n  qo100_cli decode %s 576000 12 50000 out.wav\n", path.c_str());
+    std::printf("calibrate on the beacon:\n  qo100_cli calibrate %s 576000 20000 8000\n", path.c_str());
     return 0;
 }
 

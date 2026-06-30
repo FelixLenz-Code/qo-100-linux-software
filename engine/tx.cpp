@@ -63,20 +63,23 @@ void FirInterpolator::process(cf32 x, std::vector<cf32>& out) {
 TxChain::TxChain(double fsOut, int interp)
     : fsOut_(fsOut),
       audioFs_(fsOut / interp),
+      channel_(fsOut / interp, 300.0, 2700.0),
       mod_(fsOut / interp, 0.0), // baseband USB at audio rate
       filt_(interp, fsOut, fsOut / interp) {}
 
 void TxChain::setTune(double hz) { nco_.setFreq(hz, fsOut_); }
 
 void TxChain::reset() {
+    channel_.reset();
     mod_.reset();
     filt_.reset();
     nco_.reset();
 }
 
 void TxChain::process(const std::vector<float>& audioIn, std::vector<cf32>& iqOut) {
-    for (const float a : audioIn) {
-        const cf32 bb = mod_.process(a); // complex baseband USB
+    for (const float aRaw : audioIn) {
+        const float a = channel_.process(aRaw); // limit to the 2.7 kHz SSB channel
+        const cf32 bb = mod_.process(a);        // complex baseband USB
         const size_t before = iqOut.size();
         filt_.process(bb, iqOut);        // interpolate to fsOut
         for (size_t i = before; i < iqOut.size(); ++i)

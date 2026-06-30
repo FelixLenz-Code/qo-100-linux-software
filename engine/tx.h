@@ -1,4 +1,5 @@
 #pragma once
+#include "audiofilter.h"
 #include "rx.h" // Nco
 #include "ssb.h"
 #include <complex>
@@ -39,6 +40,7 @@ public:
 private:
     double fsOut_;
     double audioFs_;
+    BandpassFIR channel_;  // 300-2700 Hz: keep TX inside the band plan
     SsbModulator mod_;     // baseband USB (carrier at 0 Hz)
     FirInterpolator filt_; // up to the wide TX rate
     Nco nco_;              // mix up to the tune offset

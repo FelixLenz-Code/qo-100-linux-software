@@ -38,15 +38,19 @@ SDR zum Testen vorhanden ist.
 - TX-Kette: Pluto TX (2.4 GHz direkt) → PA (~1–5 W) → Patch/POTY im Spiegelfokus
 - Pluto kann Full-Duplex mit unabhängigen RX/TX-LOs → man hört sich selbst.
 - Doppler ist vernachlässigbar (geostationär); dominant ist die **LNB-LO-Drift**.
-  Kalibrierung erfolgt über den mittleren PSK-Beacon @ 10489.750 MHz.
+  Kalibrierung erfolgt über einen Beacon (CW @ 10489.500/10490.000, BPSK @ 10489.750).
+- NB-Transponder: **max. 2,7 kHz Bandbreite** pro Signal → SSB-Kanalfilter 300–2700 Hz
+  in RX und TX. Der Transponder ist **500 kHz** breit → Abtastrate **≥ 576 kHz**
+  (Default), um das ganze Band zu sehen.
 
 ## Architektur
 
 ```
 engine/   headless DSP, hardwarefrei testbar (IQ rein/raus)
   ssb.*       Hilbert-FIR, USB-Modulator/-Demodulator (phasing method)
-  rx.*        RX-Kette: NCO-Tuner -> FIR-Dezimierung -> USB-Demod -> AGC
-  tx.*        TX-Kette: USB-Mod -> FIR-Interpolation -> NCO-Up-Mix
+  rx.*        RX-Kette: NCO-Tuner -> FIR-Dezimierung -> USB-Demod -> Kanalfilter -> AGC
+  tx.*        TX-Kette: Kanalfilter -> USB-Mod -> FIR-Interpolation -> NCO-Up-Mix
+  audiofilter.* SSB-Kanal-Bandpass 300-2700 Hz (RX-Selektivität, TX-Bandplan)
   calib.*     Beacon-Kalibrierung: CW-Beacon finden, LNB-Drift messen
   qo100.h     Frequenzplan (Uplink/Downlink, Beacons, 8089.5-MHz-Offset)
   device.h    IqDevice-Schnittstelle (Pluto später = eine Implementierung)
@@ -75,13 +79,13 @@ tests/        Selbsttests (SSB, RX-Kette, TX-Loopback, FFT/Spektrum/WAV)
 ./build/qo100_cli gen scene.cf32
 
 # .cf32 dekodieren -> hörbare .wav (fsIn, Dezimierung, Tune-Offset in Hz)
-./build/qo100_cli decode scene.cf32 384000 8 50000 out.wav
+./build/qo100_cli decode scene.cf32 576000 12 50000 out.wav
 
 # Sendepfad: Mono-WAV USB-modulieren -> .cf32 (fsOut, Interpolation, Tune-Offset)
-./build/qo100_cli modulate out.wav 384000 8 50000 tx.cf32
+./build/qo100_cli modulate out.wav 576000 12 50000 tx.cf32
 
 # LNB-Drift am Beacon messen (erwartete Position, Suchfenster in Hz)
-./build/qo100_cli calibrate scene.cf32 384000 20000 8000
+./build/qo100_cli calibrate scene.cf32 576000 20000 8000
 ```
 
 Echte QO-100-Mitschnitte (interleaved float32 `.cf32`, z. B. aus gqrx oder vom

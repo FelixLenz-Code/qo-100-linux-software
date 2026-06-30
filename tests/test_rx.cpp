@@ -98,6 +98,27 @@ int main() {
         check(rej > 35.0, "USB pass / LSB leak", rej, "dB");
     }
 
+    // --- SSB channel filter: a signal outside 2.7 kHz must be rejected ---
+    // Wanted USB tone -> 1500 Hz audio (in band); an adjacent USB signal 5 kHz
+    // higher -> 5000 Hz audio, which the 300-2700 Hz channel filter must cut.
+    {
+        const double fWanted = 1500.0, fAdjacent = 5000.0;
+        auto scene = complexTone(fTune + fWanted, fsIn, n, 1.0f);
+        auto adj = complexTone(fTune + fAdjacent, fsIn, n, 1.0f);
+        for (int i = 0; i < n; ++i) scene[i] += adj[i];
+
+        RxChain rx(fsIn, decim);
+        rx.setTune(fTune);
+        std::vector<float> audio;
+        rx.process(scene, audio);
+
+        const double pass = binPower(audio, fWanted, audioFs, skip);
+        const double rej = binPower(audio, fAdjacent, audioFs, skip);
+        const double ratio = toDb(pass / rej);
+        std::printf("rx (channel selectivity):\n");
+        check(ratio > 35.0, "in-band / out-of-band (5 kHz)", ratio, "dB");
+    }
+
     // --- AGC: silence -> sudden full signal must not spike, then settle ---
     {
         Agc agc(audioFs);

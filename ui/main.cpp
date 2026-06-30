@@ -54,8 +54,8 @@ struct App {
     bool haveData = false;
     std::string status = "Aufnahme wählen und »Laden« drücken.";
 
-    float fsIn = 384000.0f;
-    int decim = 8;
+    float fsIn = 576000.0f; // covers the full 500 kHz NB transponder
+    int decim = 12;         // -> 48 kHz audio
     double tune = 50000.0;
     float dbMin = -120.0f, dbMax = -10.0f;
 
