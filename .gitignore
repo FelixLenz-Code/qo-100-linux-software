@@ -1,0 +1,6 @@
+/build/
+.claude/
+*.o
+*.a
+*.cf32
+*.wav
