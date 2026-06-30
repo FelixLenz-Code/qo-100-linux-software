@@ -26,6 +26,40 @@ target_include_directories(qo100_engine PUBLIC engine)
 add_executable(qo100_cli apps/qo100_cli.cpp)
 target_link_libraries(qo100_cli PRIVATE qo100_engine)
 
+# ---- Optional GUI (Dear ImGui + ImPlot waterfall) ----
+option(BUILD_UI "Build the GUI waterfall viewer" ON)
+if(BUILD_UI)
+    find_package(OpenGL)
+    find_package(PkgConfig)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(GLFW glfw3)
+    endif()
+    set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/extern/imgui)
+    set(IMPLOT_DIR ${CMAKE_SOURCE_DIR}/extern/implot)
+    if(OpenGL_FOUND AND GLFW_FOUND AND EXISTS ${IMGUI_DIR}/imgui.cpp)
+        add_library(qo100_imgui STATIC
+            ${IMGUI_DIR}/imgui.cpp
+            ${IMGUI_DIR}/imgui_draw.cpp
+            ${IMGUI_DIR}/imgui_tables.cpp
+            ${IMGUI_DIR}/imgui_widgets.cpp
+            ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+            ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+            ${IMPLOT_DIR}/implot.cpp
+            ${IMPLOT_DIR}/implot_items.cpp
+        )
+        target_include_directories(qo100_imgui PUBLIC
+            ${IMGUI_DIR} ${IMGUI_DIR}/backends ${IMPLOT_DIR} ${GLFW_INCLUDE_DIRS})
+        target_link_libraries(qo100_imgui PUBLIC OpenGL::GL ${GLFW_LIBRARIES} ${CMAKE_DL_LIBS})
+        target_link_directories(qo100_imgui PUBLIC ${GLFW_LIBRARY_DIRS})
+
+        add_executable(qo100_ui ui/main.cpp)
+        target_link_libraries(qo100_ui PRIVATE qo100_engine qo100_imgui)
+        message(STATUS "qo100: building GUI (qo100_ui)")
+    else()
+        message(STATUS "qo100: GUI skipped (need OpenGL, glfw3 and submodules in extern/)")
+    endif()
+endif()
+
 enable_testing()
 
 add_executable(test_ssb tests/test_ssb.cpp)

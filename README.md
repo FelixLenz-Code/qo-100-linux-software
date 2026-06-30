@@ -11,7 +11,8 @@ mit moderner UI — ohne den Funktionsballast großer SDR-Suiten.
 | 0 | Hardwarefreier SSB-Kern (USB mod/demod) + Selbsttest | **fertig** |
 | 1a | IQ-Datei-I/O (.cf32) + RX-DSP (Tuning, Dezimierung, AGC, Demod) | **fertig** |
 | 1b | WAV-Ausgabe, FFT/Spektrum-Backend, CLI-Tool (`qo100_cli`) | **fertig** |
-| 1c | Live-Audio (Soundkarte) + GPU-Wasserfall-UI | offen |
+| 1c | Wasserfall-GUI (Datei-Viewer: Spektrum, Tuning, Decode→WAV) | **fertig** |
+| 1d | Live-Audio (Soundkarte, Echtzeit-Streaming) | offen |
 | 2a | TX-DSP (USB-Mod, Interpolation, Up-Mix) + TX→RX-Loopback-Test | **fertig** |
 | 2b | Pluto-Anbindung (libiio), Full-Duplex, PTT, gekoppelte TX/RX-Frequenz | offen |
 | 3 | Robustheit: Beacon-Kalibrierung, Persistenz, UI-Politur | offen |
@@ -46,9 +47,12 @@ engine/   headless DSP, hardwarefrei testbar (IQ rein/raus)
   wavfile.*   16-bit-Mono-WAV lesen/schreiben
   dsp.h       Signalgeneratoren + DFT-Bin-Messung für Tests
 apps/
-  qo100_cli   CLI: Test-Szene erzeugen, .cf32 -> .wav dekodieren
-tests/        Selbsttests (SSB, RX-Kette, FFT/Spektrum/WAV)
-ui/           (Phase 1c+) Dear ImGui Wasserfall + Bedienpanels
+  qo100_cli   CLI: Test-Szene erzeugen, .cf32 -> .wav dekodieren, WAV -> .cf32
+ui/
+  main.cpp    Wasserfall-GUI (Dear ImGui + ImPlot): Aufnahme laden, abstimmen,
+              Decode -> WAV. Kein Audiogerät nötig.
+extern/       Submodule: imgui, implot
+tests/        Selbsttests (SSB, RX-Kette, TX-Loopback, FFT/Spektrum/WAV)
 ```
 
 ## CLI nutzen (ohne Hardware)
@@ -71,9 +75,20 @@ entsprechend der Aufnahme angeben.
 ## Bauen & Testen
 
 ```sh
+git submodule update --init --recursive       # imgui + implot für die GUI
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
-ctest --test-dir build --output-on-failure   # oder: ./build/test_ssb
+ctest --test-dir build --output-on-failure
+```
+
+Die GUI braucht `glfw3` + OpenGL (Ubuntu: `libglfw3-dev`). Ohne diese Pakete
+wird nur die Engine + CLI gebaut (`-DBUILD_UI=OFF` erzwingt das).
+
+## GUI starten
+
+```sh
+./build/qo100_cli gen scene.cf32     # Testaufnahme, falls keine eigene da ist
+./build/qo100_ui scene.cf32          # Wasserfall: abstimmen, Decode -> decoded.wav
 ```
 
 ## Geplante Abhängigkeiten (später)
