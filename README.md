@@ -18,7 +18,7 @@ mit moderner UI — ohne den Funktionsballast großer SDR-Suiten.
 | 2a | TX-DSP (USB-Mod, Interpolation, Up-Mix) + TX→RX-Loopback-Test | **fertig** |
 | 2b | Pluto-Anbindung (libiio), Full-Duplex, PTT, gekoppelte TX/RX-Frequenz | offen |
 | 3a | Beacon-Kalibrierung (LNB-Drift messen) + QO-100-Frequenzplan | **fertig** |
-| 3b | Persistenz der Einstellungen, UI-Politur, Kalibrierung in der GUI | offen |
+| 3b | GUI: echte Frequenzen, Beacon-Kalibrierung, Einstellungs-Persistenz | **fertig** |
 
 Der DSP-Kern wird **ohne Hardware** entwickelt und getestet (synthetische IQ
 sowie später echte QO-100-Aufnahmen). Der Pluto-Adapter kommt erst, wenn ein
@@ -55,7 +55,8 @@ apps/
   qo100_cli   CLI: Test-Szene erzeugen, .cf32 -> .wav dekodieren, WAV -> .cf32
 ui/
   main.cpp    Wasserfall-GUI (Dear ImGui + ImPlot): Aufnahme laden, abstimmen,
-              Decode -> WAV. Kein Audiogerät nötig.
+              Decode -> WAV, echte Down-/Uplink-Frequenzen, Beacon-Kalibrierung,
+              Einstellungen in qo100.cfg. Kein Audiogerät nötig.
 extern/       Submodule: imgui, implot
 tests/        Selbsttests (SSB, RX-Kette, TX-Loopback, FFT/Spektrum/WAV)
 ```

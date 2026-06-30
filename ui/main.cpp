@@ -9,7 +9,9 @@
 #include "imgui_impl_opengl3.h"
 #include "implot.h"
 
+#include "../engine/calib.h"
 #include "../engine/iqfile.h"
+#include "../engine/qo100.h"
 #include "../engine/rx.h"
 #include "../engine/spectrum.h"
 #include "../engine/wavfile.h"
@@ -53,6 +55,12 @@ struct App {
     double tune = 50000.0;
     float dbMin = -120.0f, dbMax = -10.0f;
 
+    // QO-100 frequency context.
+    double centerDownlinkMHz = 10489.750; // RF downlink at the centre of the capture
+    double beaconOffset = 20000.0;        // where a known beacon sits in the capture
+    double calHz = 0.0;                   // LNB drift from the last calibration
+    double calSnr = 0.0;
+
     int fftSize = 1024;
     int rows = 400;
     std::vector<float> waterfall;
@@ -91,6 +99,62 @@ struct App {
             }
         }
         for (auto& v : avgSpec) v /= rows;
+    }
+
+    // Real downlink/uplink frequency for a given baseband offset, drift-corrected.
+    double downlinkHz(double offset) const {
+        return centerDownlinkMHz * 1e6 + offset - calHz;
+    }
+    double uplinkHz(double offset) const { return plan::uplinkForDownlink(downlinkHz(offset)); }
+
+    void calibrate() {
+        if (!haveData) { status = "Erst eine Aufnahme laden."; return; }
+        BeaconCalibrator cal(fsIn);
+        const CalResult r = cal.find(iq, beaconOffset, 8000.0);
+        if (!r.found) {
+            status = "Kein Beacon nahe " + std::to_string((long)beaconOffset) +
+                     " Hz (SNR " + std::to_string((int)r.snrDb) + " dB)";
+            return;
+        }
+        calHz = r.errorHz;
+        calSnr = r.snrDb;
+        char b[96];
+        std::snprintf(b, sizeof(b), "Kalibriert: LNB-Drift %.1f Hz  (SNR %.0f dB)", calHz, calSnr);
+        status = b;
+    }
+
+    void saveConfig() const {
+        std::ofstream f("qo100.cfg");
+        if (!f) return;
+        f << "path=" << path << "\n"
+          << "fsIn=" << fsIn << "\n"
+          << "decim=" << decim << "\n"
+          << "tune=" << tune << "\n"
+          << "dbMin=" << dbMin << "\n"
+          << "dbMax=" << dbMax << "\n"
+          << "centerDownlinkMHz=" << centerDownlinkMHz << "\n"
+          << "beaconOffset=" << beaconOffset << "\n"
+          << "calHz=" << calHz << "\n";
+    }
+
+    void loadConfig() {
+        std::ifstream f("qo100.cfg");
+        if (!f) return;
+        std::string line;
+        while (std::getline(f, line)) {
+            const auto eq = line.find('=');
+            if (eq == std::string::npos) continue;
+            const std::string k = line.substr(0, eq), v = line.substr(eq + 1);
+            if (k == "path") path = v;
+            else if (k == "fsIn") fsIn = std::stof(v);
+            else if (k == "decim") decim = std::stoi(v);
+            else if (k == "tune") tune = std::stod(v);
+            else if (k == "dbMin") dbMin = std::stof(v);
+            else if (k == "dbMax") dbMax = std::stof(v);
+            else if (k == "centerDownlinkMHz") centerDownlinkMHz = std::stod(v);
+            else if (k == "beaconOffset") beaconOffset = std::stod(v);
+            else if (k == "calHz") calHz = std::stod(v);
+        }
     }
 
     void decode() {
@@ -226,6 +290,38 @@ void drawSidebar(App& app) {
     ImGui::SetNextItemWidth(-FLT_MIN);
     ImGui::InputDouble("##tune", &app.tune, 100.0, 1000.0, "%.0f");
 
+    sectionHeader("FREQUENZ");
+    ImGui::TextColored(kMuted, "Downlink-Mitte  [MHz]");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputDouble("##cdl", &app.centerDownlinkMHz, 0.001, 0.01, "%.3f");
+    {
+        char dl[48], ul[48];
+        std::snprintf(dl, sizeof(dl), "%.4f MHz", app.downlinkHz(app.tune) / 1e6);
+        std::snprintf(ul, sizeof(ul), "%.4f MHz", app.uplinkHz(app.tune) / 1e6);
+        ImGui::Dummy(ImVec2(0, 2));
+        ImGui::TextColored(kMuted, "Downlink (RX)");
+        ImGui::PushFont(g_fontHeader);
+        ImGui::PushStyleColor(ImGuiCol_Text, kAccentHi);
+        ImGui::TextUnformatted(dl);
+        ImGui::PopStyleColor();
+        ImGui::PopFont();
+        ImGui::TextColored(kMuted, "Uplink (TX)");
+        ImGui::PushStyleColor(ImGuiCol_Text, rgb(0xFBBF24));
+        ImGui::TextUnformatted(ul);
+        ImGui::PopStyleColor();
+    }
+
+    sectionHeader("KALIBRIERUNG");
+    ImGui::TextColored(kMuted, "Beacon-Offset  [Hz]");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputDouble("##beac", &app.beaconOffset, 100.0, 1000.0, "%.0f");
+    if (ImGui::Button("Auf Beacon kalibrieren", ImVec2(-FLT_MIN, 0))) app.calibrate();
+    {
+        char c[64];
+        std::snprintf(c, sizeof(c), "LNB-Drift: %.1f Hz", app.calHz);
+        ImGui::TextColored(kMuted, "%s", c);
+    }
+
     sectionHeader("ANZEIGE");
     ImGui::TextColored(kMuted, "Pegelbereich  [dBFS]");
     ImGui::SetNextItemWidth(-FLT_MIN);
@@ -244,6 +340,12 @@ void drawSidebar(App& app) {
     ImGui::PushStyleColor(ImGuiCol_Text, kMuted);
     ImGui::TextWrapped("%s", app.status.c_str());
     ImGui::PopStyleColor();
+
+    ImGui::Dummy(ImVec2(0, 4));
+    if (ImGui::SmallButton("Einstellungen sichern")) {
+        app.saveConfig();
+        app.status = "Einstellungen in qo100.cfg gesichert";
+    }
 
     ImGui::EndChild();
 }
@@ -334,7 +436,8 @@ void drawUi(App& app) {
 
 int main(int argc, char** argv) {
     App app;
-    if (argc > 1) app.path = argv[1];
+    app.loadConfig();              // restore last session if present
+    if (argc > 1) app.path = argv[1]; // explicit file overrides the saved path
 
     if (!glfwInit()) { std::fprintf(stderr, "glfwInit failed\n"); return 1; }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -352,7 +455,7 @@ int main(int argc, char** argv) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    if (argc > 1) app.load();
+    app.load(); // restored or supplied path; harmlessly reports if missing
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -373,6 +476,8 @@ int main(int argc, char** argv) {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
     }
+
+    app.saveConfig(); // remember this session
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
