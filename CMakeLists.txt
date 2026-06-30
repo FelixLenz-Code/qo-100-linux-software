@@ -13,10 +13,17 @@ add_compile_options(-Wall -Wextra)
 # Hardware-free DSP engine (no external dependencies yet).
 add_library(qo100_engine
     engine/ssb.cpp
+    engine/rx.cpp
+    engine/iqfile.cpp
 )
 target_include_directories(qo100_engine PUBLIC engine)
 
 enable_testing()
+
 add_executable(test_ssb tests/test_ssb.cpp)
 target_link_libraries(test_ssb PRIVATE qo100_engine)
 add_test(NAME ssb_roundtrip COMMAND test_ssb)
+
+add_executable(test_rx tests/test_rx.cpp)
+target_link_libraries(test_rx PRIVATE qo100_engine)
+add_test(NAME rx_chain COMMAND test_rx)

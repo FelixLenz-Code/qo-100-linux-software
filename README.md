@@ -9,7 +9,8 @@ mit moderner UI — ohne den Funktionsballast großer SDR-Suiten.
 | Phase | Inhalt | Stand |
 |-------|--------|-------|
 | 0 | Hardwarefreier SSB-Kern (USB mod/demod) + Selbsttest | **fertig** |
-| 1 | Empfang: Tuning, AGC, Audio-Out, Wasserfall | offen |
+| 1a | IQ-Datei-I/O (.cf32) + RX-DSP (Tuning, Dezimierung, AGC, Demod) | **fertig** |
+| 1b | Audio-Ausgabe (Soundkarte) + Wasserfall-UI | offen |
 | 2 | Senden: Full-Duplex über Pluto, PTT, gekoppelte TX/RX-Frequenz | offen |
 | 3 | Robustheit: Beacon-Kalibrierung, Persistenz, UI-Politur | offen |
 
@@ -35,9 +36,11 @@ SDR zum Testen vorhanden ist.
 ```
 engine/   headless DSP, hardwarefrei testbar (IQ rein/raus)
   ssb.*     Hilbert-FIR, USB-Modulator/-Demodulator (phasing method)
+  rx.*      RX-Kette: NCO-Tuner -> FIR-Dezimierung -> USB-Demod -> AGC
+  iqfile.*  .cf32-Aufnahmen lesen/schreiben (GNU Radio / SDR++ kompatibel)
   dsp.h     Signalgeneratoren + DFT-Bin-Messung für Tests
-tests/    Selbsttests (modulate -> demodulate -> verify)
-ui/       (Phase 1+) Dear ImGui Wasserfall + Bedienpanels
+tests/    Selbsttests (modulate -> demodulate -> verify; RX gegen IQ-Szene)
+ui/       (Phase 1b+) Dear ImGui Wasserfall + Bedienpanels
 ```
 
 ## Bauen & Testen
