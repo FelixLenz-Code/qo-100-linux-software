@@ -1,5 +1,7 @@
 # qo100
 
+[![CI](https://github.com/FelixLenz-Code/qo-100-linux-software/actions/workflows/ci.yml/badge.svg)](https://github.com/FelixLenz-Code/qo-100-linux-software/actions/workflows/ci.yml)
+
 Schlanker SSB-Transceiver für den Amateurfunk-Satelliten **QO-100** (Es'hail-2)
 mit **ADALM-Pluto** unter Linux. Ziel: robustes USB-SSB-Senden und -Empfangen
 mit moderner UI — ohne den Funktionsballast großer SDR-Suiten.

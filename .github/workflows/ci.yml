@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  engine:
+    name: Engine + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (no GUI)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_UI=OFF
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  gui:
+    name: GUI build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install GUI dependencies
+        run: sudo apt-get update && sudo apt-get install -y libglfw3-dev libgl1-mesa-dev
+      - name: Configure (with GUI)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_UI=ON
+      - name: Build
+        run: cmake --build build -j
